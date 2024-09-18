@@ -2,7 +2,7 @@
 #![no_main]
 
 use core::panic::PanicInfo;
-static HELLO: &[u8] = b"Hello World!";
+static HELLO: &[u8] = b"I am in space and I see no God!";
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
@@ -16,7 +16,7 @@ pub extern "C" fn _start() -> ! {
         for (i, &byte) in HELLO.iter().enumerate() {
             unsafe {
                 *vga_buffer.offset(i as isize * 2) = byte; // Chraracter byte
-                *vga_buffer.offset(i as isize * 2 + 1) = 0xb; // Colour byte - Cyan
+                *vga_buffer.offset(i as isize * 2 + 1) = 0xc; // Colour byte - Red
             }
         }
     };
