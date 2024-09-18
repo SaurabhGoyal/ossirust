@@ -1,19 +1,3 @@
-+++
-title = "[In-Progress] Ossirust: Operating Systems from scratch in Rust"
-date = 2024-09-18
-description = "Learnings from writing an operating system."
-
-[taxonomies]
-tags = ["kernel", "operating-system", "process-scheduling", "system", "rust"]
-
-[extra]
-toc = true
-quick_navigation_buttons = true
-+++
-
-# Operating System
-
-
 # Overview
 A simple OS developed by following the guide given at [https://os.phil-opp.com/](https://os.phil-opp.com/).
 
@@ -40,12 +24,15 @@ Here we cover the high level view of what we are doing and how. **This follows t
         - The cargo config file that defines parameters to pass in cargo build process [`.cargo/config.toml`](https://github.com/SaurabhGoyal/ossirust/.cargo.config.toml)
 - Booting and running the binary
     - Lots of bootloader magic - essentially two things -
-        - Making your kernel bootable by adding logic of standard boot protocols such as ELF to the kernel code - crate `bootable` does that for us and generates.
+        - Making your kernel bootable by adding logic of standard boot formats such as [`ELF`](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format) (this is refined form of the naive logic we added in [segmentation for virtual-machine](https://memoryjoint.com/blog/virtual-machine/#memory-access-control-via-segmentation)) to the kernel code - crate `bootable` does that for us and generates.
         - Making a boot disk / image using the bootable kernel build - an application `bootimage` does that for us.
             - This works as a plugin as well. We can build the image using `cargo bootimage`
     - We finally have the bootable image which can be run in a machine or an emulator. For us, we tested in `qemu` using following command -
         `qemu-system-x86_64 -drive format=raw,file=./target/x86_64_ossirust/debug/bootimage-ossirust.bin`
     - A shortcut to achieve above faster is simply setting `bootimage runner` as the default cargo runner in [`.cargo/config.toml`](https://github.com/SaurabhGoyal/ossirust/.cargo.config.toml).
+- Logic -
+    - We define a start function that is supposed to be called in the bootable image as per the [`ABI (Application-Binary-Interface)`](https://en.wikipedia.org/wiki/Application_binary_interface) of the processor.
+    - We use the [`memory-mapped IO`](https://en.wikipedia.org/wiki/Memory-mapped_I/O_and_port-mapped_I/O) based way to produce output from our program. Specifically we write to video memory address `0xb8000` called as VGA buffer as it is present in the display device device and content is displayed on the screen.  
 
 ## Build and Run
 - Install qemu emulator
@@ -57,6 +44,8 @@ Here we cover the high level view of what we are doing and how. **This follows t
 
 # Reading Material
 - [https://os.phil-opp.com/](https://os.phil-opp.com/)
+- [https://en.wikipedia.org/wiki/Application_binary_interface](https://en.wikipedia.org/wiki/Application_binary_interface)
+- [https://en.wikipedia.org/wiki/Memory-mapped_I/O_and_port-mapped_I/O](https://en.wikipedia.org/wiki/Memory-mapped_I/O_and_port-mapped_I/O)
 - Related posts -
     - [Digital Machine Layer by Layer](../digital-machine-layer-by-layer)
     - [Implementing a 16-bit Virtual Machine](../virtual_machine)
