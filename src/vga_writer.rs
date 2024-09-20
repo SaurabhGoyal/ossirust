@@ -1,3 +1,5 @@
+use volatile::Volatile;
+
 const VIDEO_MEMORY_ADDRESS_TEXT_MODE: *mut u8 = 0xb8000 as *mut u8;
 const BUFFER_WIDTH: usize = 80;
 const BUFFER_HEIGHT: usize = 25;
@@ -17,7 +19,7 @@ impl Char {
 pub(crate) struct Writer {
     i: usize,
     j: usize,
-    buffer: [[Char; BUFFER_WIDTH]; BUFFER_HEIGHT],
+    buffer: [[Volatile<Char>; BUFFER_WIDTH]; BUFFER_HEIGHT],
 }
 
 impl Writer {
@@ -25,35 +27,46 @@ impl Writer {
         Self {
             i: 0,
             j: 0,
-            buffer: [[Char::new(0, 0); BUFFER_WIDTH]; BUFFER_HEIGHT],
+            buffer: core::array::from_fn(|_i| {
+                core::array::from_fn(|_i| Volatile::new(Char::new(0, 0)))
+            }),
         }
     }
 
     pub(crate) fn write_byte(&mut self, byte: u8) {
-        if self.i == BUFFER_HEIGHT - 1 && self.j == BUFFER_WIDTH {
-            self.clear_buffer();
-        }
         match byte {
             b'\n' => {
                 self.i += 1;
                 self.j = 0;
             }
             _ => {
-                self.buffer[self.i][self.j] = Char::new(byte, 0xc);
+                self.buffer[self.i][self.j].write(Char::new(byte, 0xc));
                 self.j += 1;
                 if self.j == BUFFER_WIDTH {
-                    self.j = 0;
                     self.i += 1;
+                    self.j = 0;
                 }
             }
+        }
+        if self.i == BUFFER_HEIGHT {
+            self.shift_buffer_up();
+            self.i -= 1;
         }
         self.write_buffer();
     }
 
-    fn clear_buffer(&mut self) {
+    fn shift_buffer_up(&mut self) {
+        for i in 0..(BUFFER_HEIGHT - 1) {
+            self.buffer[i] = self.buffer[i + 1].clone();
+        }
+        self.buffer[BUFFER_HEIGHT - 1] = core::array::from_fn(|_i| Volatile::new(Char::new(0, 0)));
+    }
+
+    fn reset_buffer(&mut self) {
         self.i = 0;
         self.j = 0;
-        self.buffer = [[Char::new(0, 0); BUFFER_WIDTH]; BUFFER_HEIGHT];
+        self.buffer =
+            core::array::from_fn(|_i| core::array::from_fn(|_i| Volatile::new(Char::new(0, 0))))
     }
 
     fn write_buffer(&self) {
@@ -62,9 +75,9 @@ impl Writer {
                 let index = i * BUFFER_WIDTH + j;
                 unsafe {
                     *VIDEO_MEMORY_ADDRESS_TEXT_MODE.offset(index as isize * 2) =
-                        self.buffer[i][j].code; // Chraracter byte
+                        self.buffer[i][j].read().code; // Chraracter byte
                     *VIDEO_MEMORY_ADDRESS_TEXT_MODE.offset(index as isize * 2 + 1) =
-                        self.buffer[i][j].colour; // Chraracter byte
+                        self.buffer[i][j].read().colour; // Chraracter byte
                 }
             }
         }
